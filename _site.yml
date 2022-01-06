@@ -1,4 +1,5 @@
 name: "stacks-queues"
+output_dir: "."
 navbar:
   title: "Inferring memory structure and noise"
   left:
