@@ -2,8 +2,117 @@
 title: "Overview"
 ---
 
+
+
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(cache = FALSE)
+knitr::opts_chunk$set(echo = FALSE,fig.width=5, fig.height=4,fig.align = "center",cache=TRUE)
 ```
 
-It's a website.
+
+```{r, echo=FALSE, include=FALSE, warning=FALSE, message=FALSE}
+##libraries, globals
+
+library(ggplot2)
+library(reshape)
+library(grid)
+library(dplyr)
+library(lme4)
+library(reghelper)
+library(RColorBrewer)
+library(robustbase)
+library(tidylog)
+
+
+
+paper_theme <- theme_light() + theme( axis.title.x = element_text(size=18),
+  axis.text.x=element_text(colour="#292929", 
+                           size = 14), 
+  axis.title.y = element_text(size = 18, vjust = 1),
+  axis.text.y  = element_text(size = 14, colour="#292929"),
+  strip.text=element_text(size=16,color="black"),
+strip.background = element_rect(colour = "grey50", fill = "white"),
+panel.background = element_rect(fill = "white", colour = "grey50"),
+  axis.ticks.x=element_blank(),axis.ticks.y=element_blank(),
+  axis.line.x = element_line(colour = "black"), 
+  axis.line.y = element_line(colour = "black"),
+  legend.title=element_text(size=18),
+  legend.text=element_text(size=15),
+  panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+
+quantile_low <- function(x) {
+  return(quantile(x,0.25))
+}
+
+quantile_high <- function(x) {
+  return(quantile(x,0.75))
+}
+
+
+```
+
+
+
+```{r,include=FALSE}
+
+df <- read.csv("model_output/illustrate_model1.csv")
+df$cond <- gsub("crossed","Crossed",df$cond)
+
+df_sub  <- df %>%
+          group_by(pid) %>%
+          mutate(Q_p_err = sum(Q_p_err)) %>%
+          mutate(S_p_err = sum(S_p_err)) %>%
+          top_n(n=1,wt=idx)
+
+```
+
+```{r,fig.width=8,fig.height=4}
+ggplot(data=df, aes(x=idx)) +
+      
+        geom_line(aes(y=Q_rt,group=pid),alpha=0.1) +
+      stat_summary(aes(y=Q_rt,group=1,color=cond),fun="mean",geom="line",size=1.1) +
+      stat_summary(aes(y=Q_rt,group=1,color=cond),fun="mean",geom="point",size=1.) +
+
+      paper_theme + theme(legend.position=c(0.9,0.25)) +
+      labs(y="RT", x="Index") +
+          facet_grid(cond~length, scales="free_x")  +
+           scale_color_manual(values=c("dodgerblue","orange")) +
+            guides(color="none")+ggtitle("RTs (Queue model)")
+
+
+ggplot(data=df, aes(x=idx)) +
+      
+        geom_line(aes(y=S_rt,group=pid),alpha=0.1) +
+       # geom_point(aes(y=Q_rt,group=pid),alpha=0.1) +
+      stat_summary(aes(y=S_rt,group=1,color=cond),fun="mean",geom="line",size=1.1) +
+      stat_summary(aes(y=S_rt,group=1,color=cond),fun="mean",geom="point",size=1.) +
+
+      paper_theme + 
+      labs(y="RT", x="Index") +
+          facet_grid(cond~length, scales="free_x") +
+           scale_color_manual(values=c("dodgerblue","orange")) +
+          guides(color="none") + ggtitle("RTs (Stack model)")
+```
+
+```{r,fig.width=8,fig.height=3}
+ggplot(data=df_sub, aes(x=swap_noise,y=Q_p_err,color=cond)) +
+      #  geom_point() +
+        geom_line(size=1.) +
+        facet_wrap(~length,nrow=1) +
+      paper_theme  + theme(legend.title=element_blank(),legend.position=c(0.1,0.75)) +
+         scale_color_manual(values=c("dodgerblue","orange")) +
+        labs(x="Memory Noise", y="P(error)") +
+          ggtitle("Noise versus errors (Queue)") 
+
+
+ggplot(data=df_sub, aes(x=swap_noise,y=S_p_err,color=cond)) +
+        geom_line(size=1.) +
+        facet_wrap(~length,nrow=1) +
+      paper_theme  + theme(legend.title=element_blank(),legend.position=c(0.1,0.75)) +
+         scale_color_manual(values=c("dodgerblue","orange")) +
+        labs(x="Memory Noise", y="P(error)") +
+        ggtitle("Noise versus errors (Stack)")
+
+
+```
