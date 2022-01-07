@@ -2,6 +2,12 @@
 title: "Overview"
 ---
 
+<style type="text/css">
+  body{
+  font-size: 11pt;
+  font-family: times;
+}
+</style>
 
 
 
@@ -22,7 +28,7 @@ library(reghelper)
 library(RColorBrewer)
 library(robustbase)
 library(tidylog)
-
+library(gridExtra)
 
 
 paper_theme <- theme_light() + theme( axis.title.x = element_text(size=18),
@@ -65,15 +71,26 @@ df_sub  <- df %>%
           mutate(S_p_err = sum(S_p_err)) %>%
           top_n(n=1,wt=idx)
 
+swap_noises <- sort(unique(df_sub$swap_noise))
+
 ```
+
+I will first briefly describe how the model works. The model assumes that there is some memory architecture (queues or stacks), which can be used to store and retrieve items. I assume that people can push or pop items from memory in accordance with the rules of the specified architecture. Each operation (push/pop) takes some amount of time and introduces noise --- that is, the more operations you have to perform, the more likely you are to retrieve something incorrectly. I assume that people learn a program to generate either center-embedded sequences or crossed-serial sequences (e.g., a program that says "first pick things of type A, then match them in the same/reverse order with things of type B"), which gets "compiled" into a set of choices about what items to pick and push/pop operations from memory to aid those choices. The exact series of push/pop operations needed to generate center-embedded versus crossed-serial sequences will depend on whether the memory architecture is a stack or a queue. 
+
+As in the previous model, I also assume that people can <i>learn</i> over time. They may use an incorrect strategy at first but eventually learn the correct one after getting feedback. Instead of a whole set of possible different strategies, I am here just assuming that there is one alternative strategy that people might be using, which is just picking items of type A and then picking items of type B, without regard to order. While there are a range of alternative strategies people may use, this one is both broad (is a super-set of sub-strategies) and intuitively plausible.
+
+Below, I run through some predictions about how reaction times and error rates should vary depending on sequence length and condition. Note that I have not described how the model works in full here, so it may be that you won't fully understand some of the plots until we discuss. On the other tab on this site, which you can click on above, you can see how the queue and stack model actually fit the human data.
+
 
 <br/> 
 
-### Reaction time
+### <u>Reaction times</u>
 
 The first thing we can look at is simulated mean reaction times under the queue and stack models, given a range of possible parameters. First, the queue model:
+<br/> 
 
-```{r,fig.width=8,fig.height=4}
+
+```{r,fig.width=7,fig.height=4}
 ggplot(data=df, aes(x=idx)) +
       
         geom_line(aes(y=Q_rt,group=pid),alpha=0.1) +
@@ -87,11 +104,13 @@ ggplot(data=df, aes(x=idx)) +
             guides(color="none")+ggtitle("RTs (Queue)")
 
 ```
+<br/> 
 
 
 Now, the stack model:
+<br/> 
 
-```{r,fig.width=8,fig.height=4}
+```{r,fig.width=7,fig.height=4}
 
 
 ggplot(data=df, aes(x=idx)) +
@@ -107,14 +126,18 @@ ggplot(data=df, aes(x=idx)) +
            scale_color_manual(values=c("dodgerblue","orange")) +
           guides(color="none") + ggtitle("RTs (Stack)")
 ```
+<br/> 
+
+Note that the main difference is in the center-embedded condition: the queue model predicts 1) that people will take increasingly long to respond to items in the second half of the list for longer sequences, and 2) that their RTs will diminish with each subsequent choice. 
 
 <br/> 
 
-### Memory noise
+### <u>Memory noise</u>
 
 Next, we can look at what each model predicts about how memory noise affects error rates. First the queue model:
+<br/> 
 
-```{r,fig.width=8,fig.height=3}
+```{r,fig.width=7,fig.height=3}
 ggplot(data=df_sub, aes(x=swap_noise,y=Q_p_err,color=cond)) +
       #  geom_point() +
         geom_line(size=1.) +
@@ -125,10 +148,12 @@ ggplot(data=df_sub, aes(x=swap_noise,y=Q_p_err,color=cond)) +
           ggtitle("Noise versus errors (Queue)") 
 
 ```
+<br/> 
 
 And the stack model:
+<br/> 
 
-```{r,fig.width=8,fig.height=3}
+```{r,fig.width=7,fig.height=3}
 
 
 ggplot(data=df_sub, aes(x=swap_noise,y=S_p_err,color=cond)) +
@@ -141,5 +166,36 @@ ggplot(data=df_sub, aes(x=swap_noise,y=S_p_err,color=cond)) +
 
 
 ```
+<br/> 
+
+We can more directly compare their predictions about how sequence length should affect accuracy in each condition by fixing memory noise at some value (I chose 0.02). Queues' predicted accuracy across sequence lengths are on the left and stacks' predicted accuracies over lengths are on the right. Both obviously predict that as sequences get longer, accuracy will decrease. But they make opposite predictions for which condition will be more difficult as sequences get longer. The queue model predicts that people will have a harder time accurately generating center-embedded sequences relative to crossed-serial sequences as sequences get longer; the stack model predicts the opposite.
+<br/> 
+
+```{r, fig.width=8,fig.height=3}
+swp <- swap_noises[round(length(swap_noises)/2)]
+
+plot1 <- ggplot(data=subset(df_sub, (df_sub$swap_noise<swp+0.03) & (df_sub$swap_noise>swp-0.02))) +
+      stat_summary(aes(x=length, y=1-Q_p_err, color=cond),fun="mean",geom="line",size=0.8) +
+      stat_summary(aes(x=length, y=1-Q_p_err, color=cond),fun="mean",geom="point",size=2.75) +
+      stat_summary(aes(x=length, y=1-Q_p_err,group=cond),fun="mean",geom="point",size=1.75,color="white") +
+      scale_color_manual(values=c("dodgerblue","orange")) +
+      labs(x="Length",y="P(correct)") +
+      paper_theme + theme(legend.title=element_blank(), legend.position=c(0.24,0.24)) +
+      ggtitle("Queue") +
+        coord_cartesian(ylim=c(0.8,0.96))
+
+plot2 <- ggplot(data=subset(df_sub, (df_sub$swap_noise<swp+0.03) & (df_sub$swap_noise>swp-0.02))) +
+      stat_summary(aes(x=length, y=1-S_p_err, color=cond),fun="mean",geom="line",size=0.8) +
+      stat_summary(aes(x=length, y=1-S_p_err, color=cond),fun="mean",geom="point",size=2.75) +
+      stat_summary(aes(x=length, y=1-S_p_err,group=cond),fun="mean",geom="point",size=1.75,color="white") +
+      scale_color_manual(values=c("dodgerblue","orange")) +
+      labs(x="Length",y="P(correct)") +
+      paper_theme + theme(legend.title=element_blank(), legend.position=c(0.84,0.84)) +
+      guides(color="none")+
+      ggtitle("Stack") +
+        coord_cartesian(ylim=c(0.8,0.96))
 
 
+grid.arrange(plot1, plot2, ncol=2)
+
+```

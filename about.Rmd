@@ -132,6 +132,10 @@ f_factorial <- function(l) {
   }
   
 }
+
+f_gompertz <- function(t, a,b,c) {
+      return(a * exp(-exp(b - c * t)))
+}
 ```
 
 ```{r}
@@ -153,7 +157,27 @@ for (i in 1:nrow(df_param)) {
 
 
 
+df_param_sub <- df_param %>%
+          group_by(pid,cond) %>%
+          top_n(n=1,wt=id) %>%
+          mutate(AIC_diff = -2*(lkhd_Q-lkhd_S)) %>%
+          mutate(AIC_diff_4 = -2*(lkhd_Q_4-lkhd_S_4)) %>%
+          mutate(AIC_diff_6 = -2*(lkhd_Q_6-lkhd_S_6)) %>%
+          mutate(AIC_diff_8 = -2*(lkhd_Q_8-lkhd_S_8)) %>%
+          mutate(AIC_diff_CE=(AIC_diff)*(cond=="CE")) %>%
+          mutate(AIC_diff_crossed=(AIC_diff)*(cond=="Crossed")) %>%
+          mutate(strat_err_Q_4_end = f_gompertz(1, h_q[[as.character(pid[1])]][["strat_a_4"]],
+                                               h_q[[as.character(pid[1])]][["strat_b_4"]],  h_q[[as.character(pid[1])]][["strat_c_4"]])) %>%
+          mutate(strat_err_Q_6_end = f_gompertz(1, h_q[[as.character(pid[1])]][["strat_a_6"]],
+                                               h_q[[as.character(pid[1])]][["strat_b_6"]],  h_q[[as.character(pid[1])]][["strat_c_6"]])) %>%
+          mutate(strat_err_Q_8_end = f_gompertz(1, h_q[[as.character(pid[1])]][["strat_a_8"]],
+                                               h_q[[as.character(pid[1])]][["strat_b_8"]],  h_q[[as.character(pid[1])]][["strat_c_8"]])) %>%
+          ungroup %>%
+          mutate(AIC_diff_CE = sum(AIC_diff_CE)) %>%
+          mutate(AIC_diff_crossed = sum(AIC_diff_crossed)) 
 ```
+
+
 
 ```{r, echo=FALSE, include=FALSE, warning=FALSE, message=FALSE}
 
@@ -201,9 +225,11 @@ df_sub <- df %>%
 
 ```
 
+
+
 <br/> 
 
-### Learning over time
+### <u>Learning over time</u>
 
 We can now turn to how each model actually fits the data. The first thing to look at is the inferred correct strategy use over time. Below is the queue model's predictions:
 
@@ -239,8 +265,16 @@ ggplot(data=df_sub, aes(x=trial, y=1-strat_err_S,color=cond)) +
 
 ```
 
+The only notable difference is that the stack model predicts a lower rate of correct strategy use in the 4-item crossed condition. It's not entirely clear to me why this is....
 
-## Reaction times
+<br/> 
+
+### <u>Reaction times</u>
+
+
+Looking at the predicted (mean) reaction time under the queue model, wee see that it fits both conditions pretty well, but the center-embedded condition in particular. There are decreasing RTs in the 8-item crossed condition that it does not really capture. 
+
+<br/> 
 
 ```{r,fig.width=9,fig.height=4}
 
@@ -256,8 +290,11 @@ ggplot(data=df) +
       ggtitle("Queue vs. Human RT")
 
 ```
+<br/> 
 
+The stack model misses the key trend of decreasing RTs in the second half of 6-item and 8-item lists in the center-embedded condition. It slightly better captures the longer RT for the first item in the second half of the list in the crossed condition than the queue model.
 
+<br/> 
 
 ```{r,fig.width=9,fig.height=4}
 
@@ -275,15 +312,22 @@ ggplot(data=df) +
 
 ```
 
+<br/> 
+
+### <u>Accuracy</u>
+
+Below is a plot of people's response accuracy in both conditions. There are two things to note: 1) people are more accurate in the crossed-serial condition; 2) in both conditions, their accuracy decreases with sequence length. Compare the below plot to the models' predicted accuracies, shown on the previous page (the final plot). (Hint: it looks much more queue-like than stack-like.)
+
+<br/> 
 
 ```{r,fig.width=5,fig.height=3.5}
 
 ggplot(data=df) +
-      stat_summary(aes(x=length, y=corr, color=cond),fun="mean",geom="line") +
-      stat_summary(aes(x=length, y=corr, color=cond),fun.data="mean_cl_boot",geom="errorbar",width=0.2) +
+      stat_summary(aes(x=length, y=corr, color=cond),fun="mean",geom="line",size=0.8) +
+      stat_summary(aes(x=length, y=corr, color=cond),fun.data="mean_cl_boot",geom="errorbar",width=0.2,size=0.8) +
 
-      stat_summary(aes(x=length, y=corr, color=cond),fun="mean",geom="point",size=2.25) +
-      stat_summary(aes(x=length, y=corr,group=cond),fun="mean",geom="point",size=1.5,color="white") +
+      stat_summary(aes(x=length, y=corr, color=cond),fun="mean",geom="point",size=2.75) +
+      stat_summary(aes(x=length, y=corr,group=cond),fun="mean",geom="point",size=1.75,color="white") +
       scale_color_manual(values=c("dodgerblue","orange")) +
       labs(x="Length",y="P(correct)") +
       paper_theme + theme(legend.title=element_blank(), legend.position=c(0.84,0.84))
@@ -292,9 +336,11 @@ ggplot(data=df) +
 
 ```
 
+<br/> 
 
+We can look at what the model says about the cause of people's errors. Note that I'm just showing predictions from the queue model below. First, we can look at the correlation between participants' inferred memory noise and their accuracy in both conditions and for each sequence length. There's obviously a strong relationship, but it's strongest in the center-embedded condition for longer sequences. 
 
-```{r,fig.width=9,fig.height=4}
+```{r,fig.width=8,fig.height=4}
 
 
 ggplot(data=df) +
@@ -302,20 +348,94 @@ ggplot(data=df) +
         geom_smooth(aes(x=Q_memory_err, y=corr), method="lm",formula=y~x,se=FALSE,color="black") +
       paper_theme + guides(color="none") +
         facet_grid(cond~length) +
-      labs(x="Memory error") + ylab("P(correct)") +
+      labs(x="Memory noise") + ylab("P(correct)") +
         scale_x_continuous(breaks=c(0.0,0.05,0.10)) +
             scale_color_manual(values=c("dodgerblue","orange")) 
+```
+
+<br/> 
+
+We can next turn to inferred strategy errors' relationship with accuracy, shown below. The correlations here are even stronger than with memory errors across the board, and are strongest in both conditions for longer sequences. This tells us that a significant fraction of people's incorrect responses were from them not using the correct strategy, rather than incorrectly remembering the order they pressed items or from inattention.
+
+```{r,fig.width=8,fig.height=4}
 
 ggplot(data=df) +
         stat_summary(aes(x=strat_err_Q_mean, y=corr,group=pid,color=cond),fun="mean",geom="point") +
         geom_smooth(aes(x=strat_err_Q_mean, y=corr), method="lm",formula=y~x,se=FALSE,color="black") +
       paper_theme + guides(color="none") +
         facet_grid(cond~length) +
-      labs(x="Memory error") + ylab("P(correct)") +
-            scale_color_manual(values=c("dodgerblue","orange")) 
+      labs(x="Strategy error") + ylab("P(correct)") +
+            scale_color_manual(values=c("dodgerblue","orange")) +
+      scale_x_continuous(breaks=c(0,0.25,0.5,0.75,1.), labels=c("0.0","0.25","0.5","0.75","1.0"))
 
 
 
 ```
 
+<br/>
 
+### <u>Goodness of fit</u>
+
+Finally, we can look at the AIC of the stack versus queue models. The overall AIC difference is 1467 in favor of the queue model over the stack model. However, the evidence in favor of queues only comes from the center-embedded condition. In fact, stacks fit the crossed-serial data slightly better.
+
+<br/> 
+
+```{r,fig.width=7,fig.height=3}
+
+
+ggplot(data=df_param_sub) +
+      geom_hline(yintercept=0,linetype="dotted") +
+
+      stat_summary( aes(x="4",y=AIC_diff_4),height=0,width=0.35,color="red",geom="bar",fun="mean") +
+      geom_jitter( aes(x="4",y=AIC_diff_4),height=0,width=0.05,alpha=0.5) +
+      stat_summary( aes(x="4",y=AIC_diff_4),color="red",geom="point",fun="mean",alpha=0.8) +
+      stat_summary( aes(x="4",y=AIC_diff_4),height=0,width=0.05,color="red",geom="errorbar",fun.data="mean_cl_boot",alpha=0.8) +
+        stat_summary( aes(x="6",y=AIC_diff_6),height=0,width=0.35,color="red",geom="bar",fun="mean") +
+      geom_jitter( aes(x="6",y=AIC_diff_6),height=0,width=0.05,alpha=0.5) +
+      stat_summary( aes(x="6",y=AIC_diff_6),color="red",geom="point",fun="mean",alpha=0.8) +
+      stat_summary( aes(x="6",y=AIC_diff_6),height=0,width=0.05,color="red",geom="errorbar",fun.data="mean_cl_boot",alpha=0.8) +
+
+  
+          stat_summary( aes(x="8",y=AIC_diff_8),height=0,width=0.35,color="red",geom="bar",fun="mean") +
+      geom_jitter( aes(x="8",y=AIC_diff_8),height=0,width=0.05,alpha=0.5) +
+      stat_summary( aes(x="8",y=AIC_diff_8),color="red",geom="point",fun="mean",alpha=0.8) +
+      stat_summary( aes(x="8",y=AIC_diff_8),height=0,width=0.05,color="red",geom="errorbar",fun.data="mean_cl_boot",alpha=0.8) +
+
+      paper_theme + 
+      labs(x="Length",y=expression(AIC[Q] - AIC[S])) +
+      facet_wrap(~cond)
+
+
+
+```
+<br/> 
+
+Looking at the average weight of evidence per participant as a function of length, collapsing across condition, we find that the 4-item case gives no indication of whether stacks or queues fit better. The 6- and 8-item data show a strong trend towards queues, however.
+<br/> 
+
+```{r,fig.width=5,fig.height=3.5}
+
+
+ggplot(data=df_param_sub) +
+      geom_hline(linetype="dotted", yintercept=0)+
+      stat_summary(aes(x="4",y=AIC_diff_4),fun="mean",geom="bar",width=0.5,color="black",fill="gray") +
+      stat_summary(aes(x="4",y=AIC_diff_4),fun.data="mean_cl_boot",geom="errorbar",width=0.1) +
+      stat_summary(aes(x="4",y=AIC_diff_4),fun="mean",geom="point",size=2) +
+      stat_summary(aes(x="4",y=AIC_diff_4),fun="mean",geom="point",size=1.5,color="white") +
+      stat_summary(aes(x="6",y=AIC_diff_6),fun="mean",geom="bar",width=0.5,color="black",fill="gray") +
+      stat_summary(aes(x="6",y=AIC_diff_6),fun.data="mean_cl_boot",geom="errorbar",width=0.1) +
+      stat_summary(aes(x="6",y=AIC_diff_6),fun="mean",geom="point",size=2) +
+      stat_summary(aes(x="6",y=AIC_diff_6),fun="mean",geom="point",size=1.5,color="white") +
+      stat_summary(aes(x="8",y=AIC_diff_8),fun="mean",geom="bar",width=0.5,color="black",fill="gray") +
+      stat_summary(aes(x="8",y=AIC_diff_8),fun.data="mean_cl_boot",geom="errorbar",width=0.1) +
+      stat_summary(aes(x="8",y=AIC_diff_8),fun="mean",geom="point",size=2) +
+      stat_summary(aes(x="8",y=AIC_diff_8),fun="mean",geom="point",size=1.5,color="white") +
+      # geom_jitter(aes(x="4", y=AIC_diff_4),alpha=0.5,size=0.8,height=0,width=0.1) +
+      # geom_jitter(aes(x="6", y=AIC_diff_6),alpha=0.5,size=0.8,height=0,width=0.1) +
+      # geom_jitter(aes(x="8", y=AIC_diff_8),alpha=0.5,size=0.8,height=0,width=0.1) +
+
+      paper_theme +
+      labs(x="Length",y=expression(AIC[Q] - AIC[S])) 
+
+
+```

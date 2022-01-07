@@ -266,14 +266,43 @@ $(document).ready(function () {
 
 <p><br/></p>
 <div id="learning-over-time" class="section level3">
-<h3>Learning over time</h3>
+<h3><u>Learning over time</u></h3>
 <p>We can now turn to how each model actually fits the data. The first thing to look at is the inferred correct strategy use over time. Below is the queue model’s predictions:</p>
 <p><img src="about_files/figure-html/unnamed-chunk-4-1.png" width="864" style="display: block; margin: auto;" /> Next, the stack model’s predictions:</p>
 <p><img src="about_files/figure-html/unnamed-chunk-5-1.png" width="864" style="display: block; margin: auto;" /></p>
-<p><img src="about_files/figure-html/unnamed-chunk-6-1.png" width="864" style="display: block; margin: auto;" /></p>
+<p>The only notable difference is that the stack model predicts a lower rate of correct strategy use in the 4-item crossed condition. It’s not entirely clear to me why this is….</p>
+<p><br/></p>
+</div>
+<div id="reaction-times" class="section level3">
+<h3><u>Reaction times</u></h3>
+<p>Looking at the predicted (mean) reaction time under the queue model, wee see that it fits both conditions pretty well, but the center-embedded condition in particular. There are decreasing RTs in the 8-item crossed condition that it does not really capture.</p>
+<p><br/></p>
+<p><img src="about_files/figure-html/unnamed-chunk-6-1.png" width="864" style="display: block; margin: auto;" /> <br/></p>
+<p>The stack model misses the key trend of decreasing RTs in the second half of 6-item and 8-item lists in the center-embedded condition. It slightly better captures the longer RT for the first item in the second half of the list in the crossed condition than the queue model.</p>
+<p><br/></p>
 <p><img src="about_files/figure-html/unnamed-chunk-7-1.png" width="864" style="display: block; margin: auto;" /></p>
+<p><br/></p>
+</div>
+<div id="accuracy" class="section level3">
+<h3><u>Accuracy</u></h3>
+<p>Below is a plot of people’s response accuracy in both conditions. There are two things to note: 1) people are more accurate in the crossed-serial condition; 2) in both conditions, their accuracy decreases with sequence length. Compare the below plot to the models’ predicted accuracies, shown on the previous page (the final plot). (Hint: it looks much more queue-like than stack-like.)</p>
+<p><br/></p>
 <p><img src="about_files/figure-html/unnamed-chunk-8-1.png" width="480" style="display: block; margin: auto;" /></p>
-<p><img src="about_files/figure-html/unnamed-chunk-9-1.png" width="864" style="display: block; margin: auto;" /><img src="about_files/figure-html/unnamed-chunk-9-2.png" width="864" style="display: block; margin: auto;" /></p>
+<p><br/></p>
+<p>We can look at what the model says about the cause of people’s errors. Note that I’m just showing predictions from the queue model below. First, we can look at the correlation between participants’ inferred memory noise and their accuracy in both conditions and for each sequence length. There’s obviously a strong relationship, but it’s strongest in the center-embedded condition for longer sequences.</p>
+<p><img src="about_files/figure-html/unnamed-chunk-9-1.png" width="768" style="display: block; margin: auto;" /></p>
+<p><br/></p>
+<p>We can next turn to inferred strategy errors’ relationship with accuracy, shown below. The correlations here are even stronger than with memory errors across the board, and are strongest in both conditions for longer sequences. This tells us that a significant fraction of people’s incorrect responses were from them not using the correct strategy, rather than incorrectly remembering the order they pressed items or from inattention.</p>
+<p><img src="about_files/figure-html/unnamed-chunk-10-1.png" width="768" style="display: block; margin: auto;" /></p>
+<p><br/></p>
+</div>
+<div id="goodness-of-fit" class="section level3">
+<h3><u>Goodness of fit</u></h3>
+<p>Finally, we can look at the AIC of the stack versus queue models. The overall AIC difference is 1467 in favor of the queue model over the stack model. However, the evidence in favor of queues only comes from the center-embedded condition. In fact, stacks fit the crossed-serial data slightly better.</p>
+<p><br/></p>
+<p><img src="about_files/figure-html/unnamed-chunk-11-1.png" width="672" style="display: block; margin: auto;" /> <br/></p>
+<p>Looking at the average weight of evidence per participant as a function of length, collapsing across condition, we find that the 4-item case gives no indication of whether stacks or queues fit better. The 6- and 8-item data show a strong trend towards queues, however. <br/></p>
+<p><img src="about_files/figure-html/unnamed-chunk-12-1.png" width="480" style="display: block; margin: auto;" /></p>
 </div>
 
 

@@ -18,7 +18,7 @@ library(ggplot2)
 library(reshape)
 library(grid)
 library(dplyr)
-#library(gridExtra)
+library(gridExtra)
 library(lme4)
 library(reghelper)
 library(RColorBrewer)
@@ -80,6 +80,8 @@ df_sub  <- df %>%
           mutate(S_p_err = sum(S_p_err)) %>%
           top_n(n=1,wt=idx)
 
+swap_noises <- sort(unique(df_sub$swap_noise))
+
 ```
 
 
@@ -132,6 +134,7 @@ ggplot(data=df_sub, aes(x=swap_noise,y=S_p_err,color=cond)) +
 
 
 ```
+
 ```{r, fig.width=12,fig.height=4}
 
 ggplot(data=df, aes(x=swap_noise,y=Q_p_err,color=cond)) +
@@ -191,6 +194,34 @@ ggplot(data=df, aes(x=idx, y=Q_p_err-S_p_err,color=swap_noise,group=swap_noise))
       labs(y="Error rate (Q-S)") +
           facet_grid(cond~length, scales="free_x") +
       scale_color_gradientn(colors=c("blue","red","orange"))
+
+```
+
+
+```{r, fig.width=8,fig.height=3}
+swp <- swap_noises[round(length(swap_noises)/2)]
+
+plot1 <- ggplot(data=subset(df_sub, (df_sub$swap_noise<swp+0.02) & (df_sub$swap_noise>swp-0.01))) +
+      stat_summary(aes(x=length, y=1-Q_p_err, color=cond),fun="mean",geom="line",size=0.8) +
+      stat_summary(aes(x=length, y=1-Q_p_err, color=cond),fun="mean",geom="point",size=2.75) +
+      stat_summary(aes(x=length, y=1-Q_p_err,group=cond),fun="mean",geom="point",size=1.75,color="white") +
+      scale_color_manual(values=c("dodgerblue","orange")) +
+      labs(x="Length",y="P(correct)") +
+      paper_theme + theme(legend.title=element_blank(), legend.position=c(0.24,0.24)) +
+      ggtitle("Queue")
+
+plot2 <- ggplot(data=subset(df_sub, (df_sub$swap_noise<swp+0.02) & (df_sub$swap_noise>swp-0.01))) +
+      stat_summary(aes(x=length, y=1-S_p_err, color=cond),fun="mean",geom="line",size=0.8) +
+      stat_summary(aes(x=length, y=1-S_p_err, color=cond),fun="mean",geom="point",size=2.75) +
+      stat_summary(aes(x=length, y=1-S_p_err,group=cond),fun="mean",geom="point",size=1.75,color="white") +
+      scale_color_manual(values=c("dodgerblue","orange")) +
+      labs(x="Length",y="P(correct)") +
+      paper_theme + theme(legend.title=element_blank(), legend.position=c(0.84,0.84)) +
+      guides(color="none")+
+      ggtitle("Stack")
+
+
+grid.arrange(plot1, plot2, ncol=2)
 
 ```
 
