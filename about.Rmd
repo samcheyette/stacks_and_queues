@@ -239,6 +239,9 @@ ggplot(data=df_sub, aes(x=trial, y=1-strat_err_S,color=cond)) +
 
 ```
 
+
+## Reaction times
+
 ```{r,fig.width=9,fig.height=4}
 
 ggplot(data=df) +
