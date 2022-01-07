@@ -1,6 +1,318 @@
 ---
-title: "About"
+title: "Model fitting"
 ---
 
 
-This is a project.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,fig.width=5, 
+                      fig.height=4,fig.align = "center",cache=TRUE, message=FALSE,warning=FALSE)
+```
+
+
+```{r, echo=FALSE, include=FALSE, warning=FALSE, message=FALSE}
+##libraries, globals
+
+library(ggplot2)
+library(reshape)
+library(grid)
+library(dplyr)
+#library(gridExtra)
+library(lme4)
+library(reghelper)
+library(RColorBrewer)
+#library(e1071)   
+library(robustbase)
+library(tidylog)
+library(hash)
+
+
+
+paper_theme <- theme_light() + theme( axis.title.x = element_text(size=18),
+  axis.text.x=element_text(colour="#292929", 
+                           size = 14), 
+  axis.title.y = element_text(size = 18, vjust = 1),
+  axis.text.y  = element_text(size = 14, colour="#292929"),
+  strip.text=element_text(size=16,color="black"),
+strip.background = element_rect(colour = "grey50", fill = "white"),
+panel.background = element_rect(fill = "white", colour = "grey50"),
+  axis.ticks.x=element_blank(),axis.ticks.y=element_blank(),
+  axis.line.x = element_line(colour = "black"), 
+  axis.line.y = element_line(colour = "black"),
+  legend.title=element_text(size=18),
+  legend.text=element_text(size=15),
+  panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+
+quantile_low <- function(x) {
+  return(quantile(x,0.25))
+}
+
+quantile_high <- function(x) {
+  return(quantile(x,0.75))
+}
+
+
+
+open_brackets <- c("(","[","{","<")
+closed_brackets <- c(")","]","}",">")
+matching_brackets <- hash()
+for (i in 1:length(open_brackets)) {
+  matching_brackets[open_brackets[i]] = closed_brackets[i]
+  matching_brackets[closed_brackets[i]] = open_brackets[i]
+}
+
+
+f_is_CE <- function(seq, l) {
+  seq <- seq[1]
+  l <- l[1]
+  if (nchar(seq) != l) {
+    return(FALSE)
+  }
+
+  half <- round(nchar(seq)/2)
+  seq_1 <- substr(seq,1,half)
+  seq_2 <- substr(seq,half+1,nchar(seq))
+  
+  if (nchar(seq_1) != nchar(seq_2)) {
+    return(FALSE)
+  }
+  else {
+    for (i in 1:nchar(seq_1)) {
+      if (substr(seq_2,i,i) != matching_brackets[[substr(seq_1,nchar(seq_1)-i+1, nchar(seq_1)-i+1)]]) {
+        return(FALSE)
+      }
+
+    }
+    return(TRUE)
+  }
+}
+
+f_is_crossed <- function(seq, l) {
+  seq <- seq[1]
+  l <- l[1]
+  if (nchar(seq) != l) {
+    return(FALSE)
+  }
+
+  half <- round(nchar(seq)/2)
+  seq_1 <- substr(seq,1,half)
+  seq_2 <- substr(seq,half+1,nchar(seq))
+  
+  if (nchar(seq_1) != nchar(seq_2)) {
+    return(FALSE)
+  }
+  else {
+    for (i in 1:nchar(seq_1)) {
+      if (substr(seq_2,i,i) != matching_brackets[[substr(seq_1,i,i)]]) {
+        return(FALSE)
+      }
+
+    }
+    return(TRUE)
+  }
+}
+
+f_is_corr <- function(cond, seq, l) {
+  cond <- cond[1]
+  seq <- as.character(seq[1])
+  l <- l[1]
+  if (cond == "CE") {
+    return(f_is_CE(seq,l)) 
+  } else {
+    return(f_is_crossed(seq,l))
+  }
+}
+
+f_factorial <- function(l) {
+  l <- l[1]
+  if (l <= 1) {
+    return (1)
+  } else {
+    return(l * f_factorial(l-1))
+  }
+  
+}
+```
+
+```{r}
+df_param <- read.csv("model_output/MLE_param_multstrat2.csv")
+df_param$id <- seq.int(1,nrow(df_param))
+df_param$cond <- gsub("crossed","Crossed",df_param$cond)
+df_param$param_name <- gsub("swap_noise","memory_err",df_param$param_name)
+df_param$param_name <- gsub("switch_cost","switch_time",df_param$param_name)
+
+
+h_q <- hash()
+for (i in 1:nrow(df_param)) {
+  
+  if (!has.key(as.character(df_param[i,]$pid),h_q)) {
+    h_q[[as.character(df_param[i,]$pid)]] <- hash()
+  }
+  h_q[[as.character(df_param[i,]$pid)]][as.character(df_param[i,]$param_name)] <- df_param[i,]$param_est_Q
+}
+
+
+
+```
+
+```{r, echo=FALSE, include=FALSE, warning=FALSE, message=FALSE}
+
+df <- read.csv("model_output/MLE_fit_multstrat2.csv")
+#df <- read.csv("model_output/MLE_fit_noswitch1.csv")
+
+df$id <- seq.int(1,nrow(df))
+df$cond <- gsub("crossed","Crossed",df$cond)
+df$Q_rt_mu <- exp(log(df$Q_rt_mean) + (df$Q_rt_sd**2.)/2)
+df$S_rt_mu <- exp(log(df$S_rt_mean) + (df$S_rt_sd**2.)/2)
+#df$Q_rt_sigma <- (exp(df$Q_rt_sd**2.-1) * (exp(2*log(df$Q_rt_mean) + df$Q_rt_sd**2.)))**0.5
+
+
+df <- df %>%
+      mutate(p_corr=(p_CE*(cond=="CE")) + (p_crossed*(cond=="Crossed"))) %>%
+      group_by(length) %>%
+      mutate(n_corr = f_factorial(round(length/2))) %>%
+
+      mutate(n_oocc = n_corr**2) %>%
+      mutate(Q_p_corr=(1-strat_err_Q) + strat_err_Q*(n_corr/n_oocc)) %>%
+      group_by(pid, length) %>%
+      mutate(Q_p_corr_mean=mean(Q_p_corr)) %>%
+      mutate(strat_err_Q_mean=mean(strat_err_Q)) %>%
+      rowwise() %>%
+      mutate(Q_rt_lower=exp(log(Q_rt_mean)-Q_rt_sd)) %>%
+      mutate(Q_rt_upper=exp(log(Q_rt_mean)+Q_rt_sd)) %>%
+      mutate(S_rt_lower=exp(log(S_rt_mean)-S_rt_sd)) %>%
+      mutate(S_rt_upper=exp(log(S_rt_mean)+S_rt_sd)) %>%
+      mutate(Q_memory_err=h_q[[as.character(pid)]][["memory_err"]]) %>%
+      group_by(pid,trial,length) %>%
+      mutate(corr=1*f_is_corr(cond,resp,length)) %>%
+
+      mutate(gen_length=max(index)+1) %>%
+      group_by(cond,length,index) %>%
+      mutate(Q_rt_upper=mean(Q_rt_upper)) %>%
+      mutate(Q_rt_lower=mean(Q_rt_lower)) %>%
+      mutate(S_rt_upper=mean(S_rt_upper)) %>%
+      mutate(S_rt_lower=mean(S_rt_lower)) 
+
+# beta(lm(data=df,rt~Q_rt_mean))
+# beta(lm(data=df,rt~S_rt_mean))
+df_sub <- df %>%
+          group_by(cond,pid, trial,length) %>%
+          top_n(n=1,wt=id)
+
+```
+
+<br/> 
+
+### Learning over time
+
+We can now turn to how each model actually fits the data. The first thing to look at is the inferred correct strategy use over time. Below is the queue model's predictions:
+
+
+```{r,fig.width=9,fig.height=3}
+ggplot(data=df_sub, aes(x=trial, y=1-strat_err_Q,color=cond)) +
+      stat_summary(fun="mean",geom="point") +
+      stat_summary(fun="mean",geom="line") +
+      stat_summary(fun.data="mean_cl_boot",geom="errorbar",width=0.5) +
+      paper_theme + theme(legend.position=c(0.89,0.27),legend.title=element_blank()) +
+      facet_wrap(~length,scales="free_x") +
+      scale_color_manual(values=c("dodgerblue","orange")) +
+      coord_cartesian(ylim=c(0,1)) +
+      labs(x="Trial", y="P(correct strategy)") +
+      ggtitle("Correct strategy use (Queue)")
+
+
+```
+Next, the stack model's predictions:
+
+```{r,fig.width=9,fig.height=3}
+ggplot(data=df_sub, aes(x=trial, y=1-strat_err_S,color=cond)) +
+      stat_summary(fun="mean",geom="point") +
+      stat_summary(fun="mean",geom="line") +
+      stat_summary(fun.data="mean_cl_boot",geom="errorbar",width=0.5) +
+      paper_theme + theme(legend.position=c(0.89,0.27),legend.title=element_blank()) +
+      facet_wrap(~length,scales="free_x") +
+      scale_color_manual(values=c("dodgerblue","orange")) +
+      coord_cartesian(ylim=c(0,1)) +
+      labs(x="Trial", y="P(correct strategy)") +
+      ggtitle("Correct strategy use (Stack)")
+
+
+```
+
+```{r,fig.width=9,fig.height=4}
+
+ggplot(data=df) +
+     # geom_ribbon(aes(x=index, y=Q_rt_mean,ymin=Q_rt_lower,ymax=Q_rt_upper),alpha=0.12) +
+    #  stat_summary(aes(x=index,y=Q_rt_mean), geom="line",fun="mean",size=1.5) +
+      stat_summary(aes(x=index,y=Q_rt_mu), geom="line",fun="mean",size=1.5) +      stat_summary(aes(x=index,y=rt,color=cond),fun="mean") +
+      stat_summary(aes(x=index,y=rt,color=cond),fun.data="mean_cl_boot",geom="errorbar",width=0.2) +
+      facet_grid(cond~length,scales="free_x") +
+            scale_color_manual(values=c("dodgerblue","orange")) +
+      paper_theme + guides(color="none") +
+      labs(x="Index",y="RT") +
+      ggtitle("Queue vs. Human RT")
+
+```
+
+
+
+```{r,fig.width=9,fig.height=4}
+
+ggplot(data=df) +
+   #  geom_ribbon(aes(x=index, y=S_rt_mean,ymin=S_rt_lower,ymax=S_rt_upper),alpha=0.12) +
+     # stat_summary(aes(x=index,y=S_rt_mean), geom="line",fun="mean",size=1.5) +
+      stat_summary(aes(x=index,y=S_rt_mu), geom="line",fun="mean",size=1.5) +
+      stat_summary(aes(x=index,y=rt,color=cond),fun="mean") +
+      stat_summary(aes(x=index,y=rt,color=cond),fun.data="mean_cl_boot",geom="errorbar",width=0.2) +
+      facet_grid(cond~length,scales="free_x") +
+            scale_color_manual(values=c("dodgerblue","orange")) +
+      paper_theme + guides(color="none") +
+      labs(x="Index",y="RT") +
+      ggtitle("Stack vs. Human RT")
+
+```
+
+
+```{r,fig.width=5,fig.height=3.5}
+
+ggplot(data=df) +
+      stat_summary(aes(x=length, y=corr, color=cond),fun="mean",geom="line") +
+      stat_summary(aes(x=length, y=corr, color=cond),fun.data="mean_cl_boot",geom="errorbar",width=0.2) +
+
+      stat_summary(aes(x=length, y=corr, color=cond),fun="mean",geom="point",size=2.25) +
+      stat_summary(aes(x=length, y=corr,group=cond),fun="mean",geom="point",size=1.5,color="white") +
+      scale_color_manual(values=c("dodgerblue","orange")) +
+      labs(x="Length",y="P(correct)") +
+      paper_theme + theme(legend.title=element_blank(), legend.position=c(0.84,0.84))
+      
+
+
+```
+
+
+
+```{r,fig.width=9,fig.height=4}
+
+
+ggplot(data=df) +
+        stat_summary(aes(x=Q_memory_err, y=corr,group=pid,color=cond),fun="mean",geom="point") +
+        geom_smooth(aes(x=Q_memory_err, y=corr), method="lm",formula=y~x,se=FALSE,color="black") +
+      paper_theme + guides(color="none") +
+        facet_grid(cond~length) +
+      labs(x="Memory error") + ylab("P(correct)") +
+        scale_x_continuous(breaks=c(0.0,0.05,0.10)) +
+            scale_color_manual(values=c("dodgerblue","orange")) 
+
+ggplot(data=df) +
+        stat_summary(aes(x=strat_err_Q_mean, y=corr,group=pid,color=cond),fun="mean",geom="point") +
+        geom_smooth(aes(x=strat_err_Q_mean, y=corr), method="lm",formula=y~x,se=FALSE,color="black") +
+      paper_theme + guides(color="none") +
+        facet_grid(cond~length) +
+      labs(x="Memory error") + ylab("P(correct)") +
+            scale_color_manual(values=c("dodgerblue","orange")) 
+
+
+
+```
+
+

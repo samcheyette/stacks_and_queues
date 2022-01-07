@@ -67,6 +67,12 @@ df_sub  <- df %>%
 
 ```
 
+<br/> 
+
+### Reaction time
+
+The first thing we can look at is simulated mean reaction times under the queue and stack models, given a range of possible parameters. First, the queue model:
+
 ```{r,fig.width=8,fig.height=4}
 ggplot(data=df, aes(x=idx)) +
       
@@ -78,7 +84,14 @@ ggplot(data=df, aes(x=idx)) +
       labs(y="RT", x="Index") +
           facet_grid(cond~length, scales="free_x")  +
            scale_color_manual(values=c("dodgerblue","orange")) +
-            guides(color="none")+ggtitle("RTs (Queue model)")
+            guides(color="none")+ggtitle("RTs (Queue)")
+
+```
+
+
+Now, the stack model:
+
+```{r,fig.width=8,fig.height=4}
 
 
 ggplot(data=df, aes(x=idx)) +
@@ -92,8 +105,14 @@ ggplot(data=df, aes(x=idx)) +
       labs(y="RT", x="Index") +
           facet_grid(cond~length, scales="free_x") +
            scale_color_manual(values=c("dodgerblue","orange")) +
-          guides(color="none") + ggtitle("RTs (Stack model)")
+          guides(color="none") + ggtitle("RTs (Stack)")
 ```
+
+<br/> 
+
+### Memory noise
+
+Next, we can look at what each model predicts about how memory noise affects error rates. First the queue model:
 
 ```{r,fig.width=8,fig.height=3}
 ggplot(data=df_sub, aes(x=swap_noise,y=Q_p_err,color=cond)) +
@@ -105,6 +124,12 @@ ggplot(data=df_sub, aes(x=swap_noise,y=Q_p_err,color=cond)) +
         labs(x="Memory Noise", y="P(error)") +
           ggtitle("Noise versus errors (Queue)") 
 
+```
+
+And the stack model:
+
+```{r,fig.width=8,fig.height=3}
+
 
 ggplot(data=df_sub, aes(x=swap_noise,y=S_p_err,color=cond)) +
         geom_line(size=1.) +
@@ -112,7 +137,9 @@ ggplot(data=df_sub, aes(x=swap_noise,y=S_p_err,color=cond)) +
       paper_theme  + theme(legend.title=element_blank(),legend.position=c(0.1,0.75)) +
          scale_color_manual(values=c("dodgerblue","orange")) +
         labs(x="Memory Noise", y="P(error)") +
-        ggtitle("Noise versus errors (Stack)")
+        ggtitle("Noise versus errors (Stack)") 
 
 
 ```
+
+
